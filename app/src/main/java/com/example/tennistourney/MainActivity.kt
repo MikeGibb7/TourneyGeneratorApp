@@ -54,6 +54,7 @@ fun MessageList(players: MutableState<List<Player>>) {
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(vertical = 8.dp)
             ) {
+                Spacer(modifier = Modifier.padding(horizontal = 16.dp))
                 Text(text = player.name)
                 Spacer(modifier = Modifier.weight(1f))
                 IconButton(
@@ -70,7 +71,7 @@ fun MessageList(players: MutableState<List<Player>>) {
         }
     }
 }
-@Composable
+
 fun matchCreator(players: List<Player>): List<Match> {
     // Create a set to store pairs of players already matched
     val matchedPairs = mutableSetOf<Match>()
@@ -111,112 +112,133 @@ fun tRows(currentTab: MutableState<Int>) {
         }
     }
 }
+@Composable
+fun playerDisplay(
+    players: MutableState<List<Player>>,
+    matches: MutableState<List<Match>>
+) {
+    var playerName by remember {mutableStateOf("")}
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        MessageList(players)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Bottom,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            TextBox(onTextChanged = { playerName = it })
+
+            Button(onClick = {
+                players.value = players.value + Player(playerName, 0)
+                playerName = ""
+                matches.value = matchCreator(players.value)
+            }) {
+                Text(text = "Add Player")
+            }
+        }
+    }
+}
+
+@Composable
+fun tournamentDisplay(players: MutableState<List<Player>>, matches: MutableState<List<Match>>){
+
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            matches.value.forEach { pair ->
+                var isSelectedPlayer1 by remember { mutableStateOf(checkIfWinner(pair.player1, pair)) }
+                var isSelectedPlayer2 by remember { mutableStateOf(checkIfWinner(pair.player2, pair)) }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "${pair.player1.name}")
+                    Spacer(modifier = Modifier.width(8.dp)) // Add space between the player name and checkbox
+                    Checkbox(
+                        checked = isSelectedPlayer1,
+                            onCheckedChange = { isChecked ->
+                                if (isChecked) {
+                                    isSelectedPlayer2 = false // Deselect the other checkbox
+                                    pair.winner = pair.player1
+                                    pair.player1.points++
+                                    pair.player2.points = max(0, pair.player2.points - 1) // Decrement points of the other player
+                                }
+                                isSelectedPlayer1 = isChecked
+                            }
+                            )
+
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "${pair.player2.name}")
+                    Spacer(modifier = Modifier.width(8.dp)) // Add space between the player name and checkbox
+                    Checkbox(
+                        checked = isSelectedPlayer2,
+                        onCheckedChange = { isChecked ->
+                            if (isChecked) {
+                                isSelectedPlayer1 = false // Deselect the other checkbox
+                                pair.winner = pair.player2
+                                pair.player2.points++
+                                pair.player1.points = max(0, pair.player1.points - 1) // Decrement points of the other player
+                            }
+                            isSelectedPlayer2 = isChecked
+                        }
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp)) // Add space between the two texts
+            }
+
+
+    }
+}
+fun checkIfWinner(player: Player, pair: Match): Boolean {
+    return player== pair.winner
+}
+@Composable
+fun standingsDisplay(players: MutableState<List<Player>>) {
+    val sortedPlayers = remember { mutableStateOf(listOf<Player>()) }
+
+    sortedPlayers.value = players.value.sortedByDescending { it.points }
+
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ){
+        sortedPlayers.value.forEach { player ->
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(vertical = 8.dp)
+            ) {
+                Text(text = "Name: ${player.name}")
+                Spacer(modifier = Modifier.width(16.dp)) // Add space between the name and points
+                Text(text = "Points: ${player.points}")
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true)
 @Composable
 fun DefaultPreview() {
     TennisTourneyTheme {
-        var playerName by remember {mutableStateOf("")}
         val players = remember { mutableStateOf(listOf<Player>()) }
         val currentTab = remember { mutableStateOf(0) }
+        var matches = remember {mutableStateOf(matchCreator(players.value)) } // Remember the matches list
 
-
-        if(currentTab.value == 0) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                tRows(currentTab)
-                MessageList(players)
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.Bottom,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    TextBox(onTextChanged = { playerName = it })
-
-                    Button(onClick = {
-                        players.value = players.value + Player(playerName, 0)
-                        playerName = ""
-                    }) {
-                        Text(text = "Add Player")
-                    }
-                }
-            }
-        } else if(currentTab.value == 1){
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                tRows(currentTab)
-                val matches = matchCreator(players.value)
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    matches.forEach { pair ->
-                        var isSelectedPlayer1 by remember { mutableStateOf(false) }
-                        var isSelectedPlayer2 by remember { mutableStateOf(false) }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = "${pair.player1.name}")
-                            Spacer(modifier = Modifier.width(8.dp)) // Add space between the player name and checkbox
-                            Checkbox(
-                                checked = isSelectedPlayer1,
-                                onCheckedChange = { isChecked ->
-                                    if (isChecked) {
-                                        isSelectedPlayer2 = false // Deselect the other checkbox
-                                        pair.winner = pair.player1
-                                        pair.player1.points++
-                                        pair.player2.points = max(0, pair.player2.points - 1) // Decrement points of the other player
-                                    }
-                                    isSelectedPlayer1 = isChecked
-                                }
-                            )
-                        }
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = "${pair.player2.name}")
-                            Spacer(modifier = Modifier.width(8.dp)) // Add space between the player name and checkbox
-                            Checkbox(
-                                checked = isSelectedPlayer2,
-                                onCheckedChange = { isChecked ->
-                                    if (isChecked) {
-                                        isSelectedPlayer1 = false // Deselect the other checkbox
-                                        pair.winner = pair.player2
-                                        pair.player2.points++
-                                        pair.player1.points = max(0, pair.player1.points - 1) // Decrement points of the other player
-                                    }
-                                    isSelectedPlayer2 = isChecked
-                                }
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp)) // Add space between the two texts
-                    }
-
-                    }
-            }
-        } else{
-            val sortedPlayers = remember { mutableStateOf(listOf<Player>()) }
-
-            sortedPlayers.value = players.value.sortedByDescending { it.points }
-
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ){
-                tRows(currentTab)
-                sortedPlayers.value.forEach { player ->
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(vertical = 8.dp)
-                    ) {
-                        Text(text = "Name: ${player.name}")
-                        Spacer(modifier = Modifier.width(16.dp)) // Add space between the name and points
-                        Text(text = "Points: ${player.points}")
-                    }
-                }
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            tRows(currentTab)
+            if (currentTab.value == 0) {
+                playerDisplay(players, matches)
+            } else if (currentTab.value == 1) {
+                tournamentDisplay(players, matches)
+            } else {
+                standingsDisplay(players)
             }
         }
     }
